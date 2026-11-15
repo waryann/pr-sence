@@ -58,8 +58,6 @@
   function applyLoad(data) {
     state.members = new Map(data.membres.map(m => [m.id, m]));
     state.seances = new Map(data.seances.map(s => [s.date, { titre: s.titre || "", presences: s.presences || {} }]));
-    state.messages = data.messages || [];
-    state.unread = state.messages.filter(m => tsOf(m) > lastSeen && m.auteur !== state.nom).length;
   }
   async function reload() {
     const data = await rpc("charger", withCode());
@@ -592,7 +590,7 @@
   function renderChat() {
     const box = $("#msgs");
     box.innerHTML = state.messages.length ? state.messages.map(m => `<div class="msg ${m.auteur === state.nom ? "me" : ""}"><b>${esc(m.auteur)} · ${new Date(m.envoye).toLocaleString("fr-BE", { weekday: "short", hour: "2-digit", minute: "2-digit" })}</b>${esc(m.texte)}</div>`).join("")
-      : `<p class="hint" style="margin:auto;text-align:center">Pas encore de message. Écris ici pour te coordonner pendant l'appel.</p>`;
+      : `<p class="hint" style="margin:auto;text-align:center">Pas encore de message. Les messages arrivent en direct chez ceux qui ont la page ouverte et s'effacent quand on recharge la page.</p>`;
     box.scrollTop = box.scrollHeight;
     const latest = state.messages.length ? tsOf(state.messages[state.messages.length - 1]) : 0;
     lastSeen = Math.max(lastSeen, latest, Date.now()); store.set("chatSeen", String(lastSeen));
@@ -608,12 +606,11 @@
     const input = $("#chatInput"); const texte = input.value.trim().slice(0, 500);
     if (!texte) return;
     input.value = "";
-    try {
-      await rpc("envoyer_message", withCode({ p_auteur: state.nom, p_texte: texte }));
-      const m = { auteur: state.nom, texte, envoye: new Date().toISOString() };
-      state.messages.push(m); renderChat();
-      broadcast("msg", m);
-    } catch (err) { input.value = texte; if (err?.code !== "MAUVAIS_CODE") toast("Message non envoyé. Réessaie."); }
+    // Messages éphémères : envoyés en direct à ceux qui ont la page ouverte, jamais enregistrés.
+    if (!channel || !state.online) { input.value = texte; toast("Pas connecté : message non envoyé."); return; }
+    const m = { auteur: state.nom, texte, envoye: new Date().toISOString() };
+    state.messages.push(m); state.messages = state.messages.slice(-40); renderChat();
+    broadcast("msg", m);
   };
 
   // ---------- Navigation et clavier ----------

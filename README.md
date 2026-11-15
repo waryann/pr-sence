@@ -6,7 +6,7 @@ Application web pour faire l'appel des cultes sur téléphone ou ordinateur.
 - **Cultes** : la liste de tous les appels enregistrés, avec les totaux par commission et l'export pour Excel.
 - **Suivi** : qui vient régulièrement, qui manque depuis 3 cultes ou plus.
 - **Membres** : ajouter, modifier, retirer, ou coller une feuille Excel.
-- Les personnes connectées et une petite discussion sont visibles en direct.
+- Les personnes connectées et une petite discussion sont visibles en direct. Les messages ne sont pas enregistrés : ils disparaissent quand on recharge la page.
 
 ## Fonctionnement
 
