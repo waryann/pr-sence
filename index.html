@@ -166,6 +166,13 @@ textarea { min-height: 140px; font-family: ui-monospace, Menlo, monospace; font-
 /* Discussion */
 .fab { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 15; border: 0; border-radius: 999px; padding: 12px 18px; background: var(--accent); color: var(--surface); font-weight: 700; box-shadow: 0 4px 14px rgb(0 0 0 / .18); display: inline-flex; gap: 8px; align-items: center; }
 .fab .count { background: var(--danger); color: #fff; border-radius: 999px; font-size: 0.75rem; padding: 1px 7px; }
+.fab.ping .count { animation: ping 1.4s ease-out infinite; }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgb(179 38 30 / .7); } 70% { box-shadow: 0 0 0 10px rgb(179 38 30 / 0); } 100% { box-shadow: 0 0 0 0 rgb(179 38 30 / 0); } }
+.peek { position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); z-index: 15; max-width: min(320px, calc(100% - 32px)); background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px 14px 4px 14px; box-shadow: 0 6px 20px rgb(0 0 0 / .2); padding: 10px 14px; text-align: left; overflow-wrap: anywhere; }
+.peek b { display: block; font-size: 0.8rem; color: var(--accent); }
+.peek.show { animation: pop .25s ease-out; }
+@keyframes pop { from { transform: translateY(8px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .fab.ping .count, .peek.show { animation: none; } }
 .chat { position: fixed; right: 16px; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 16; max-width: 420px; margin-left: auto; height: min(60vh, 460px); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 8px 28px rgb(0 0 0 / .22); display: flex; flex-direction: column; overflow: hidden; }
 .chat header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); font-weight: 700; }
 .msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
@@ -214,6 +221,7 @@ textarea { min-height: 140px; font-family: ui-monospace, Menlo, monospace; font-
 </div>
 
 <div id="toastHost"></div>
+<button class="peek" id="chatPeek" hidden aria-live="polite"></button>
 <button class="fab" id="chatBtn" hidden>Discussion <span class="count" id="chatCount" hidden></span></button>
 <section class="chat" id="chat" hidden aria-label="Discussion">
   <header><span>Discussion</span><button class="linkbtn" id="chatClose">Fermer</button></header>

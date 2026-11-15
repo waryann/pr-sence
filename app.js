@@ -32,12 +32,14 @@
   const sb = window.supabase.createClient(cfg.url, cfg.cle, { auth: { persistSession: false, autoRefreshToken: false } });
   const clientId = Math.random().toString(36).slice(2, 10);
 
+  let lastSeen = Number(store.get("chatSeen")) || 0;
+  const tsOf = m => new Date(m.envoye).getTime();
   const state = {
     code: store.get("code"), nom: store.get("nom") || "",
     members: new Map(), seances: new Map(), messages: [],
     date: defaultDate(), tab: store.get("tab") || "appel",
     filter: "", q: "", hideMarked: false, suiviFilter: "", showOff: false,
-    cursor: null, order: [], peers: [], online: true,
+    cursor: null, order: [], peers: [], online: true, unread: 0,
   };
 
   // ---------- Accès à la base ----------
@@ -57,6 +59,7 @@
     state.members = new Map(data.membres.map(m => [m.id, m]));
     state.seances = new Map(data.seances.map(s => [s.date, { titre: s.titre || "", presences: s.presences || {} }]));
     state.messages = data.messages || [];
+    state.unread = state.messages.filter(m => tsOf(m) > lastSeen && m.auteur !== state.nom).length;
   }
   async function reload() {
     const data = await rpc("charger", withCode());
@@ -134,7 +137,8 @@
       .on("broadcast", { event: "msg" }, ({ payload: m }) => {
         if (!m || !m.texte) return;
         state.messages.push(m); state.messages = state.messages.slice(-40);
-        if (!$("#chat").hidden) renderChat(); else renderChatBadge();
+        if (!$("#chat").hidden) renderChat();
+        else { state.unread++; renderChatBadge(); peek(m); }
       })
       .on("presence", { event: "sync" }, () => {
         state.peers = Object.entries(channel.presenceState()).map(([key, metas]) => ({ key, ...(metas[metas.length - 1] || {}) }));
@@ -569,11 +573,21 @@
   }
 
   // ---------- Discussion ----------
-  let lastSeen = Number(store.get("chatSeen")) || 0;
-  const tsOf = m => new Date(m.envoye).getTime();
   function renderChatBadge() {
-    const unread = state.messages.filter(m => tsOf(m) > lastSeen && m.auteur !== state.nom).length;
-    const c = $("#chatCount"); c.hidden = !unread || !$("#chat").hidden; c.textContent = unread;
+    const unread = $("#chat").hidden ? state.unread : 0;
+    const c = $("#chatCount"); c.hidden = !unread; c.textContent = unread > 9 ? "9+" : unread;
+    $("#chatBtn").classList.toggle("ping", unread > 0);
+    document.title = (unread ? `(${unread}) ` : "") + "Registre des présences";
+  }
+  // Petite bulle au-dessus de « Discussion » quand quelqu'un écrit pendant que la discussion est fermée.
+  let peekTimer;
+  function peek(m) {
+    const el = $("#chatPeek");
+    el.innerHTML = `<b>${esc(m.auteur)}</b>${esc(m.texte.length > 90 ? m.texte.slice(0, 90) + "…" : m.texte)}`;
+    el.hidden = false;
+    el.classList.remove("show"); void el.offsetWidth; el.classList.add("show");
+    try { navigator.vibrate?.(80); } catch {}
+    clearTimeout(peekTimer); peekTimer = setTimeout(() => { el.hidden = true; }, 6000);
   }
   function renderChat() {
     const box = $("#msgs");
@@ -581,10 +595,13 @@
       : `<p class="hint" style="margin:auto;text-align:center">Pas encore de message. Écris ici pour te coordonner pendant l'appel.</p>`;
     box.scrollTop = box.scrollHeight;
     const latest = state.messages.length ? tsOf(state.messages[state.messages.length - 1]) : 0;
-    if (latest > lastSeen) { lastSeen = latest; store.set("chatSeen", String(latest)); }
+    lastSeen = Math.max(lastSeen, latest, Date.now()); store.set("chatSeen", String(lastSeen));
+    state.unread = 0;
     renderChatBadge();
   }
-  $("#chatBtn").onclick = () => { $("#chat").hidden = false; $("#chatBtn").hidden = true; renderChat(); $("#chatInput").focus(); };
+  const openChat = () => { $("#chat").hidden = false; $("#chatBtn").hidden = true; $("#chatPeek").hidden = true; renderChat(); $("#chatInput").focus(); };
+  $("#chatBtn").onclick = openChat;
+  $("#chatPeek").onclick = openChat;
   $("#chatClose").onclick = () => { $("#chat").hidden = true; $("#chatBtn").hidden = false; renderChatBadge(); };
   $("#chatForm").onsubmit = async e => {
     e.preventDefault();
